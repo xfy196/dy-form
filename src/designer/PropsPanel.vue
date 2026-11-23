@@ -56,6 +56,15 @@ function toggleRequired(val: boolean) {
   store.setRequired(field.value.id, val)
 }
 
+function setSelectMultiple(val: boolean) {
+  if (!field.value) return
+  updateProp('multiple', val)
+  store.updateFieldSchema(field.value.id, {
+    type: val ? 'array' : 'string',
+    default: val ? [] : undefined,
+  })
+}
+
 function applyOptions() {
   if (!field.value) return
   const options: SelectOption[] = optionText.value
@@ -148,13 +157,7 @@ function applyOptions() {
         >
           <el-switch
             :model-value="!!field.schema['x-component-props']?.multiple"
-            @update:model-value="(val: boolean) => {
-              updateProp('multiple', val)
-              store.updateFieldSchema(field.id, {
-                type: val ? 'array' : 'string',
-                default: val ? [] : undefined,
-              })
-            }"
+            @update:model-value="setSelectMultiple"
           />
         </el-form-item>
 
