@@ -1,0 +1,29 @@
+{
+  "name": "dy-form-backend",
+  "version": "1.0.0",
+  "private": true,
+  "description": "dy-form Egg.js backend",
+  "egg": {
+    "declarations": true
+  },
+  "scripts": {
+    "dev": "egg-bin dev",
+    "debug": "egg-bin debug",
+    "start": "egg-scripts start --daemon --title=dy-form-backend",
+    "stop": "egg-scripts stop --title=dy-form-backend",
+    "test": "egg-bin test"
+  },
+  "dependencies": {
+    "egg": "^3.30.1",
+    "egg-cors": "^3.0.1",
+    "egg-mysql": "^4.0.0",
+    "egg-scripts": "^3.1.0"
+  },
+  "devDependencies": {
+    "egg-bin": "^6.13.0",
+    "egg-mock": "^5.12.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
