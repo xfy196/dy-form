@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
+import { Delete, Plus } from '@element-plus/icons-vue'
 import type { SelectOption, WidgetType } from '@/schema/types'
 import { WIDGET_METAS } from '@/schema/defaults'
 import { listDatasets, previewDataset, type DatasetItem } from '@/api/datasets'
@@ -22,21 +23,10 @@ const emit = defineEmits<{
   'update:draft': [value: FieldDraft]
 }>()
 
-const optionText = ref('')
 const datasets = ref<DatasetItem[]>([])
 const datasetFields = ref<string[]>([])
 const loadingDatasets = ref(false)
 const loadingPreview = ref(false)
-
-watch(
-  () => props.draft.options,
-  (options) => {
-    optionText.value = options?.length
-      ? options.map((o) => `${o.label}|${o.value}`).join('\n')
-      : ''
-  },
-  { immediate: true, deep: true },
-)
 
 onMounted(async () => {
   loadingDatasets.value = true
@@ -57,7 +47,11 @@ const isLayout = computed(
   () => props.draft.component === 'Divider' || props.draft.jsonType === 'void',
 )
 
-function patch( partial: Partial<FieldDraft>) {
+/**
+ * 更新草稿字段
+ * @param partial - 需要合并的草稿片段
+ */
+function patch(partial: Partial<FieldDraft>) {
   emit('update:draft', { ...props.draft, ...partial })
 }
 
@@ -71,23 +65,50 @@ function onTypeChange(type: WidgetType) {
   emit('update:draft', next)
 }
 
-function applyOptions() {
-  const options: SelectOption[] = optionText.value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [label, value] = line.split('|').map((s) => s.trim())
-      return { label: label || value, value: value ?? label }
-    })
+/**
+ * 更新某一行选项的 label 或 value
+ * @param index - 选项下标
+ * @param key - 字段名
+ * @param val - 新值
+ */
+function updateOption(index: number, key: 'label' | 'value', val: string) {
+  const options: SelectOption[] = props.draft.options.map((item, i) =>
+    i === index ? { ...item, [key]: val } : { ...item },
+  )
   patch({ options, optionsMode: 'static' })
+}
+
+/** 新增一行空选项 */
+function addOption() {
+  patch({
+    options: [...props.draft.options, { label: '', value: '' }],
+    optionsMode: 'static',
+  })
+}
+
+/**
+ * 删除指定选项行
+ * @param index - 选项下标
+ */
+function removeOption(index: number) {
+  patch({
+    options: props.draft.options.filter((_, i) => i !== index),
+    optionsMode: 'static',
+  })
 }
 
 function setOptionsMode(mode: OptionsMode) {
   patch({
     optionsMode: mode,
     ...(mode === 'static'
-      ? { datasetId: null, valueKey: '', labelKey: '' }
+      ? {
+          datasetId: null,
+          valueKey: '',
+          labelKey: '',
+          options: props.draft.options.length
+            ? props.draft.options
+            : [{ label: '', value: '' }],
+        }
       : { options: [] }),
   })
 }
@@ -146,7 +167,7 @@ async function onDatasetChange(id: number | null) {
       </el-tag>
     </el-form-item>
 
-    <el-form-item label="字段名 (name)" required>
+    <el-form-item label="字段名 (key)" required>
       <el-input
         :model-value="draft.name"
         placeholder="如 name、userAge"
@@ -293,17 +314,35 @@ async function onDatasetChange(id: number | null) {
       </el-form-item>
 
       <template v-if="draft.optionsMode === 'static'">
-        <el-form-item label="选项 (每行: 标签|值)">
-          <el-input
-            v-model="optionText"
-            type="textarea"
-            :rows="5"
-            placeholder="选项一|option1"
-          />
+        <el-form-item label="选项">
+          <div class="option-list">
+            <div
+              v-for="(opt, index) in draft.options"
+              :key="index"
+              class="option-row"
+            >
+              <el-input
+                :model-value="opt.label"
+                placeholder="标签"
+                @update:model-value="updateOption(index, 'label', $event)"
+              />
+              <el-input
+                :model-value="String(opt.value ?? '')"
+                placeholder="值"
+                @update:model-value="updateOption(index, 'value', $event)"
+              />
+              <el-button
+                :icon="Delete"
+                type="danger"
+                plain
+                @click="removeOption(index)"
+              />
+            </div>
+            <el-button type="primary" plain :icon="Plus" @click="addOption">
+              新增选项
+            </el-button>
+          </div>
         </el-form-item>
-        <el-button type="primary" plain size="small" @click="applyOptions">
-          应用选项
-        </el-button>
       </template>
 
       <template v-else-if="draft.optionsMode === 'dataset'">
@@ -364,6 +403,23 @@ async function onDatasetChange(id: number | null) {
   font-size: 12px;
   color: #909399;
   line-height: 1.4;
+}
+
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.option-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-row .el-input {
+  flex: 1;
 }
 </style>
 

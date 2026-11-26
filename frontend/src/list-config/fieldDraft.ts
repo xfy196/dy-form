@@ -83,7 +83,10 @@ export function draftToPayload(draft: FieldDraft): FieldPayload {
     required: draft.required,
     props: persistProps,
     optionsMode: optionWidget ? draft.optionsMode : null,
-    options: optionWidget && draft.optionsMode === 'static' ? draft.options : null,
+    options:
+      optionWidget && draft.optionsMode === 'static'
+        ? draft.options.filter((o) => String(o.label).trim() || String(o.value).trim())
+        : null,
     datasetId: optionWidget && draft.optionsMode === 'dataset' ? draft.datasetId : null,
     valueKey: optionWidget && draft.optionsMode === 'dataset' ? draft.valueKey : null,
     labelKey: optionWidget && draft.optionsMode === 'dataset' ? draft.labelKey : null,

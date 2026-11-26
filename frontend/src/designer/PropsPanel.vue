@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { Delete, Plus } from '@element-plus/icons-vue'
 import type { SelectOption } from '@/schema/types'
 import { useDesignerStore } from './store'
 
@@ -7,16 +8,11 @@ const store = useDesignerStore()
 
 const field = computed(() => store.selectedField)
 const nameInput = ref('')
-const optionText = ref('')
 
 watch(
   field,
   (f) => {
     nameInput.value = f?.name ?? ''
-    const options = f?.schema.componentProps?.options
-    optionText.value = options
-      ? options.map((o) => `${o.label}|${o.value}`).join('\n')
-      : ''
   },
   { immediate: true },
 )
@@ -31,6 +27,10 @@ const isRequired = computed(() =>
 
 const hasOptions = computed(() =>
   ['Select', 'Radio', 'Checkbox'].includes(field.value?.schema['component'] || ''),
+)
+
+const optionList = computed<SelectOption[]>(() =>
+  field.value?.schema.componentProps?.options || [],
 )
 
 function commitName() {
@@ -65,23 +65,46 @@ function setSelectMultiple(val: boolean) {
   })
 }
 
-function applyOptions() {
+/**
+ * 写入选项列表，并同步非 Checkbox 的 enum
+ * @param options - 选项数组
+ */
+function commitOptions(options: SelectOption[]) {
   if (!field.value) return
-  const options: SelectOption[] = optionText.value
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => {
-      const [label, value] = line.split('|').map((s) => s.trim())
-      return { label: label || value, value: value ?? label }
-    })
-
   updateProp('options', options)
   if (field.value.schema['component'] !== 'Checkbox') {
     store.updateFieldSchema(field.value.id, {
-      enum: options.map((o) => o.value as string | number | boolean),
+      enum: options
+        .filter((o) => o.label !== '' || o.value !== '')
+        .map((o) => o.value as string | number | boolean),
     })
   }
+}
+
+/**
+ * 更新某一行选项
+ * @param index - 选项下标
+ * @param key - 字段名
+ * @param val - 新值
+ */
+function updateOption(index: number, key: 'label' | 'value', val: string) {
+  const options = optionList.value.map((item, i) =>
+    i === index ? { ...item, [key]: val } : { ...item },
+  )
+  commitOptions(options)
+}
+
+/** 新增一行空选项 */
+function addOption() {
+  commitOptions([...optionList.value, { label: '', value: '' }])
+}
+
+/**
+ * 删除指定选项行
+ * @param index - 选项下标
+ */
+function removeOption(index: number) {
+  commitOptions(optionList.value.filter((_, i) => i !== index))
 }
 </script>
 
@@ -96,7 +119,7 @@ function applyOptions() {
         <el-tag>{{ field.schema['component'] }}</el-tag>
       </el-form-item>
 
-      <el-form-item label="字段名 (name)">
+      <el-form-item label="字段名 (key)">
         <el-input v-model="nameInput" @blur="commitName" @keyup.enter="commitName" />
       </el-form-item>
 
@@ -217,17 +240,38 @@ function applyOptions() {
       </el-form-item>
 
       <template v-if="hasOptions">
-        <el-form-item label="选项 (每行: 标签|值)">
-          <el-input
-            v-model="optionText"
-            type="textarea"
-            :rows="5"
-            placeholder="选项一|option1"
-          />
+        <el-form-item label="选项">
+          <div class="option-list">
+            <div
+              v-for="(opt, index) in optionList"
+              :key="index"
+              class="option-row"
+            >
+              <el-input
+                :model-value="opt.label"
+                placeholder="标签"
+                size="small"
+                @update:model-value="updateOption(index, 'label', $event)"
+              />
+              <el-input
+                :model-value="String(opt.value ?? '')"
+                placeholder="值"
+                size="small"
+                @update:model-value="updateOption(index, 'value', $event)"
+              />
+              <el-button
+                :icon="Delete"
+                type="danger"
+                plain
+                size="small"
+                @click="removeOption(index)"
+              />
+            </div>
+            <el-button type="primary" plain size="small" :icon="Plus" @click="addOption">
+              新增选项
+            </el-button>
+          </div>
         </el-form-item>
-        <el-button type="primary" plain size="small" @click="applyOptions">
-          应用选项
-        </el-button>
       </template>
     </el-form>
   </div>
@@ -247,5 +291,22 @@ function applyOptions() {
   font-size: 14px;
   font-weight: 600;
   color: #303133;
+}
+
+.option-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.option-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.option-row .el-input {
+  flex: 1;
 }
 </style>

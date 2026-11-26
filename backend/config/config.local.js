@@ -5,10 +5,10 @@ module.exports = () => {
 
   config.mysql = {
     client: {
-      host: 'localhost',
+      host: '192.168.3.122',
       port: '3306',
       user: 'root',
-      password: 'root',
+      password: '123456',
       database: 'dy-form-dev',
       charset: 'utf8mb4',
     },
