@@ -45,14 +45,31 @@ export function createDraftFromWidget(widget: WidgetType): FieldDraft {
   }
 }
 
+/**
+ * 数据集模式下补齐分页默认值（仅填充 undefined，空字符串表示明确不传）
+ * @param props - 控件 props
+ */
+export function ensureDatasetPaginationProps(props: ComponentProps): ComponentProps {
+  const next = { ...props }
+  if (next.pageKey === undefined) next.pageKey = 'page'
+  if (next.page === undefined) next.page = 1
+  if (next.pageSizeKey === undefined) next.pageSizeKey = 'pageSize'
+  if (next.pageSize === undefined) next.pageSize = 50
+  return next
+}
+
 export function draftFromRecord(row: FieldRecord): FieldDraft {
+  const baseProps = { ...(row.props || {}) }
   return {
     name: row.name,
     title: row.title || '',
     component: row.component,
     jsonType: row.jsonType,
     required: row.required,
-    props: { ...(row.props || {}) },
+    props:
+      row.optionsMode === 'dataset'
+        ? ensureDatasetPaginationProps(baseProps)
+        : baseProps,
     optionsMode: row.optionsMode,
     options: row.options ? [ ...row.options ] : [],
     datasetId: row.datasetId,
@@ -73,7 +90,11 @@ export function draftToPayload(draft: FieldDraft): FieldPayload {
   }
 
   // fieldId 仅运行时注入，不入库
-  const { fieldId: _fieldId, ...persistProps } = draft.props || {}
+  const { fieldId: _fieldId, ...rawProps } = draft.props || {}
+  const persistProps =
+    optionWidget && draft.optionsMode === 'dataset'
+      ? ensureDatasetPaginationProps(rawProps)
+      : rawProps
 
   return {
     name: draft.name.trim(),
@@ -117,6 +138,32 @@ export function recordToFieldSchema(row: FieldRecord, resolvedOptions?: SelectOp
   }
 }
 
+/**
+ * 从字段 props 组装 options 请求的分页参数
+ * @param props - 字段 props
+ */
+function buildOptionsPaginationQuery(props?: ComponentProps | null) {
+  if (!props) return undefined
+  const ensured = ensureDatasetPaginationProps({ ...props })
+  const pageKey = ensured.pageKey != null ? String(ensured.pageKey).trim() : ''
+  const pageSizeKey = ensured.pageSizeKey != null ? String(ensured.pageSizeKey).trim() : ''
+  const query: {
+    pageKey?: string
+    page?: number
+    pageSizeKey?: string
+    pageSize?: number
+  } = {}
+  if (pageKey) {
+    query.pageKey = pageKey
+    query.page = ensured.page != null ? Number(ensured.page) : 1
+  }
+  if (pageSizeKey) {
+    query.pageSizeKey = pageSizeKey
+    query.pageSize = ensured.pageSize != null ? Number(ensured.pageSize) : 50
+  }
+  return Object.keys(query).length ? query : undefined
+}
+
 export async function buildPreviewSchema(rows: FieldRecord[]): Promise<FormSchema> {
   const fields = []
   for (const row of rows) {
@@ -124,7 +171,7 @@ export async function buildPreviewSchema(rows: FieldRecord[]): Promise<FormSchem
     const isRemoteSelect = row.component === 'Select' && !!row.props?.remote
     // 远程搜索下拉：初始不预拉全量，由控件 remote-method 请求
     if (isOptionWidget(row.component) && row.optionsMode === 'dataset' && !isRemoteSelect) {
-      options = await getFieldOptions(row.id)
+      options = await getFieldOptions(row.id, buildOptionsPaginationQuery(row.props))
     } else if (isOptionWidget(row.component) && row.optionsMode === 'static') {
       options = row.options || []
     }

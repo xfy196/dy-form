@@ -94,8 +94,39 @@ class DatasetService extends Service {
   }
 
   /**
+   * 收集需要透传给上游的查询参数（搜索 + 分页）
+   * @param {{ keyword?: string, searchKey?: string, pageKey?: string, page?: number, pageSizeKey?: string, pageSize?: number }} query
+   * @returns {Record<string, string|number>}
+   */
+  buildUpstreamParams(query = {}) {
+    const params = {};
+    const keyword = query.keyword != null ? String(query.keyword) : '';
+    const searchKey = query.searchKey || 'keyword';
+    if (keyword !== '' && searchKey) {
+      params[searchKey] = keyword;
+    }
+
+    const pageKey = query.pageKey != null ? String(query.pageKey).trim() : '';
+    if (pageKey && query.page != null && query.page !== '' && !Number.isNaN(Number(query.page))) {
+      params[pageKey] = Number(query.page);
+    }
+
+    const pageSizeKey = query.pageSizeKey != null ? String(query.pageSizeKey).trim() : '';
+    if (
+      pageSizeKey &&
+      query.pageSize != null &&
+      query.pageSize !== '' &&
+      !Number.isNaN(Number(query.pageSize))
+    ) {
+      params[pageSizeKey] = Number(query.pageSize);
+    }
+
+    return params;
+  }
+
+  /**
    * Fetch upstream and extract list by dataPath.
-   * @param {{ keyword?: string, searchKey?: string }} [query]
+   * @param {{ keyword?: string, searchKey?: string, pageKey?: string, page?: number, pageSizeKey?: string, pageSize?: number }} [query]
    */
   async fetchList(dataset, query = {}) {
     const method = (dataset.method || 'GET').toUpperCase();
@@ -105,12 +136,14 @@ class DatasetService extends Service {
     };
 
     let url = this.resolveFetchUrl(dataset.url);
-    const keyword = query.keyword != null ? String(query.keyword) : '';
-    const searchKey = query.searchKey || 'keyword';
-    if (keyword !== '') {
-      if (method === 'GET') {
+    const upstreamParams = this.buildUpstreamParams(query);
+
+    if (method === 'GET') {
+      if (Object.keys(upstreamParams).length) {
         const u = new URL(url);
-        u.searchParams.set(searchKey, keyword);
+        Object.entries(upstreamParams).forEach(([ key, value ]) => {
+          u.searchParams.set(key, String(value));
+        });
         url = u.toString();
       }
     }
@@ -118,10 +151,12 @@ class DatasetService extends Service {
     const init = { method, headers };
     if (method !== 'GET') {
       let body = dataset.body;
-      if (keyword !== '' && body && typeof body === 'object' && !Array.isArray(body)) {
-        body = { ...body, [searchKey]: keyword };
-      } else if (keyword !== '' && (body == null || body === '')) {
-        body = { [searchKey]: keyword };
+      if (Object.keys(upstreamParams).length) {
+        if (body && typeof body === 'object' && !Array.isArray(body)) {
+          body = { ...body, ...upstreamParams };
+        } else if (body == null || body === '') {
+          body = { ...upstreamParams };
+        }
       }
       if (body != null) {
         if (!headers['Content-Type'] && !headers['content-type']) {
@@ -143,10 +178,15 @@ class DatasetService extends Service {
     return extracted;
   }
 
-  async preview(id, limit = 20) {
+  /**
+   * @param {number} id
+   * @param {number} [limit]
+   * @param {{ keyword?: string, searchKey?: string, pageKey?: string, page?: number, pageSizeKey?: string, pageSize?: number }} [query]
+   */
+  async preview(id, limit = 20, query = {}) {
     const dataset = await this.findById(id);
     if (!dataset) return null;
-    const list = await this.fetchList(dataset);
+    const list = await this.fetchList(dataset, query);
     const samples = list.slice(0, limit);
     const keys = new Set();
     for (const item of samples) {
@@ -159,6 +199,38 @@ class DatasetService extends Service {
       fields: [ ...keys ],
       samples,
     };
+  }
+
+  /**
+   * 按 valueKey/labelKey 解析为标准 options（供设计器等无 fieldId 场景）
+   * @param {number} id
+   * @param {{ valueKey: string, labelKey: string, keyword?: string, searchKey?: string, pageKey?: string, page?: number, pageSizeKey?: string, pageSize?: number }} params
+   */
+  async resolveOptions(id, params = {}) {
+    const dataset = await this.findById(id);
+    if (!dataset) return null;
+    const valueKey = String(params.valueKey || '').trim();
+    const labelKey = String(params.labelKey || '').trim();
+    if (!valueKey || !labelKey) {
+      throw new Error('valueKey / labelKey 必填');
+    }
+    const list = await this.fetchList(dataset, {
+      keyword: params.keyword,
+      searchKey: params.searchKey,
+      pageKey: params.pageKey,
+      page: params.page,
+      pageSizeKey: params.pageSizeKey,
+      pageSize: params.pageSize,
+    });
+    return list.map(item => {
+      if (item == null || typeof item !== 'object') {
+        return { label: String(item), value: item };
+      }
+      return {
+        label: item[labelKey],
+        value: item[valueKey],
+      };
+    });
   }
 }
 

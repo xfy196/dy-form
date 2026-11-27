@@ -5,29 +5,36 @@ import { ElMessage } from 'element-plus'
 import SchemaForm from '@/renderer/SchemaForm.vue'
 import type { FormSchema } from '@/schema/types'
 import { validateFormSchema } from '@/schema/validate'
+import { hydrateSchemaDatasetOptions } from '@/schema/resolveDatasetOptions'
 import sampleSchema from '@/mock/sample-schema.json'
 
 const router = useRouter()
 const schema = ref<FormSchema | null>(null)
 const result = ref('')
+const loading = ref(false)
 
 const title = computed(() => schema.value?.title || '表单预览')
 
-onMounted(() => {
-  const cached = sessionStorage.getItem('dy-form-preview-schema')
-  if (cached) {
-    try {
-      const parsed = JSON.parse(cached) as FormSchema
-      const check = validateFormSchema(parsed)
-      if (check.valid) {
-        schema.value = parsed
-        return
+onMounted(async () => {
+  loading.value = true
+  try {
+    const cached = sessionStorage.getItem('dy-form-preview-schema')
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached) as FormSchema
+        const check = validateFormSchema(parsed)
+        if (check.valid) {
+          schema.value = await hydrateSchemaDatasetOptions(parsed)
+          return
+        }
+      } catch {
+        // fall through to sample
       }
-    } catch {
-      // fall through to sample
     }
+    schema.value = sampleSchema as FormSchema
+  } finally {
+    loading.value = false
   }
-  schema.value = sampleSchema as FormSchema
 })
 
 function onSubmit(model: Record<string, unknown>) {
@@ -50,7 +57,7 @@ function back() {
       <el-button @click="back">返回设计器</el-button>
     </header>
 
-    <div class="preview-page__body">
+    <div class="preview-page__body" v-loading="loading">
       <el-card shadow="never" class="preview-page__form">
         <SchemaForm
           v-if="schema"

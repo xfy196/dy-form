@@ -138,7 +138,20 @@ class DatasetController extends Controller {
       return;
     }
     try {
-      const data = await service.dataset.preview(id);
+      const body = ctx.request.body || {};
+      const query = {};
+      if (body.keyword != null) query.keyword = String(body.keyword);
+      if (body.searchKey != null) query.searchKey = String(body.searchKey);
+      if (body.pageKey != null && String(body.pageKey).trim()) {
+        query.pageKey = String(body.pageKey).trim();
+        query.page = body.page != null ? Number(body.page) : 1;
+      }
+      if (body.pageSizeKey != null && String(body.pageSizeKey).trim()) {
+        query.pageSizeKey = String(body.pageSizeKey).trim();
+        query.pageSize = body.pageSize != null ? Number(body.pageSize) : 50;
+      }
+      const limit = body.limit != null ? Number(body.limit) : 20;
+      const data = await service.dataset.preview(id, limit, query);
       if (!data) {
         ctx.status = 404;
         ctx.body = ctx.helper.fail('数据集不存在');
@@ -148,6 +161,51 @@ class DatasetController extends Controller {
     } catch (err) {
       ctx.status = 400;
       ctx.body = ctx.helper.fail(err instanceof Error ? err.message : '预览失败');
+    }
+  }
+
+  /** 设计器等场景：按映射直接返回 options */
+  async options() {
+    const { ctx, service } = this;
+    const id = Number(ctx.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+      ctx.status = 400;
+      ctx.body = ctx.helper.fail('无效的 id');
+      return;
+    }
+    try {
+      const body = ctx.request.body || {};
+      const valueKey = body.valueKey != null ? String(body.valueKey) : '';
+      const labelKey = body.labelKey != null ? String(body.labelKey) : '';
+      if (!valueKey.trim() || !labelKey.trim()) {
+        ctx.status = 400;
+        ctx.body = ctx.helper.fail('valueKey / labelKey 必填');
+        return;
+      }
+      const params = {
+        valueKey: valueKey.trim(),
+        labelKey: labelKey.trim(),
+      };
+      if (body.keyword != null) params.keyword = String(body.keyword);
+      if (body.searchKey != null) params.searchKey = String(body.searchKey);
+      if (body.pageKey != null && String(body.pageKey).trim()) {
+        params.pageKey = String(body.pageKey).trim();
+        params.page = body.page != null ? Number(body.page) : 1;
+      }
+      if (body.pageSizeKey != null && String(body.pageSizeKey).trim()) {
+        params.pageSizeKey = String(body.pageSizeKey).trim();
+        params.pageSize = body.pageSize != null ? Number(body.pageSize) : 50;
+      }
+      const data = await service.dataset.resolveOptions(id, params);
+      if (!data) {
+        ctx.status = 404;
+        ctx.body = ctx.helper.fail('数据集不存在');
+        return;
+      }
+      ctx.body = ctx.helper.ok(data);
+    } catch (err) {
+      ctx.status = 400;
+      ctx.body = ctx.helper.fail(err instanceof Error ? err.message : '解析选项失败');
     }
   }
 }

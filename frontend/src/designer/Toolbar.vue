@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -15,6 +15,8 @@ import {
 import SchemaForm from '@/renderer/SchemaForm.vue'
 import { createForm, getForm, listForms, updateForm, type FormListItem } from '@/api/forms'
 import { checkBackendHealth } from '@/api/http'
+import { hydrateSchemaDatasetOptions } from '@/schema/resolveDatasetOptions'
+import type { FormSchema } from '@/schema/types'
 import { useDesignerStore } from './store'
 
 const store = useDesignerStore()
@@ -41,8 +43,30 @@ onUnmounted(() => {
 const jsonDrawer = ref(false)
 const importVisible = ref(false)
 const previewVisible = ref(false)
+const previewSchema = ref<FormSchema | null>(null)
+const previewLoading = ref(false)
 const importText = ref('')
 const jsonText = ref('')
+
+watch(previewVisible, async (visible) => {
+  if (!visible) {
+    previewSchema.value = null
+    return
+  }
+  if (!store.fields.length) {
+    previewSchema.value = null
+    return
+  }
+  previewLoading.value = true
+  try {
+    previewSchema.value = await hydrateSchemaDatasetOptions(store.schema)
+  } catch {
+    previewSchema.value = store.schema
+    ElMessage.warning('部分数据集选项加载失败，已使用当前 schema')
+  } finally {
+    previewLoading.value = false
+  }
+})
 
 const saveVisible = ref(false)
 const saveName = ref('')
@@ -324,12 +348,14 @@ async function confirmLoad() {
       append-to-body
       destroy-on-close
     >
-      <SchemaForm
-        v-if="store.fields.length"
-        :schema="store.schema"
-        @submit="(m) => ElMessage.success('提交: ' + JSON.stringify(m))"
-      />
-      <el-empty v-else description="请先添加字段" />
+      <div v-loading="previewLoading">
+        <SchemaForm
+          v-if="previewSchema"
+          :schema="previewSchema"
+          @submit="(m) => ElMessage.success('提交: ' + JSON.stringify(m))"
+        />
+        <el-empty v-else-if="!previewLoading" description="请先添加字段" />
+      </div>
     </el-dialog>
   </div>
 </template>

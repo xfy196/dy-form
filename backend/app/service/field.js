@@ -165,12 +165,13 @@ class FieldService extends Service {
 
   /**
    * @param {object} field
-   * @param {{ keyword?: string, searchKey?: string }} [query]
+   * @param {{ keyword?: string, searchKey?: string, pageKey?: string, page?: number, pageSizeKey?: string, pageSize?: number }} [query]
    */
   async resolveOptions(field, query = {}) {
     if (!field || !OPTION_COMPONENTS.has(field.component)) return [];
     const keyword = query.keyword != null ? String(query.keyword).trim() : '';
-    const searchKey = query.searchKey || (field.props && field.props.searchKey) || 'keyword';
+    const props = (field.props && typeof field.props === 'object') ? field.props : {};
+    const searchKey = query.searchKey || props.searchKey || 'keyword';
 
     if (field.optionsMode === 'static') {
       const options = Array.isArray(field.options) ? field.options : [];
@@ -184,9 +185,26 @@ class FieldService extends Service {
     if (field.optionsMode === 'dataset') {
       const dataset = await this.service.dataset.findById(field.datasetId);
       if (!dataset) throw new Error('关联数据集不存在');
+
+      // query 优先，其次字段 props；参数名有值才透传上游
+      const pageKey = String(
+        query.pageKey != null ? query.pageKey : (props.pageKey != null ? props.pageKey : '')
+      ).trim();
+      const pageSizeKey = String(
+        query.pageSizeKey != null ? query.pageSizeKey : (props.pageSizeKey != null ? props.pageSizeKey : '')
+      ).trim();
+      const page = query.page != null
+        ? Number(query.page)
+        : (props.page != null ? Number(props.page) : 1);
+      const pageSize = query.pageSize != null
+        ? Number(query.pageSize)
+        : (props.pageSize != null ? Number(props.pageSize) : 50);
+
       const list = await this.service.dataset.fetchList(dataset, {
         keyword,
         searchKey,
+        ...(pageKey ? { pageKey, page } : {}),
+        ...(pageSizeKey ? { pageSizeKey, pageSize } : {}),
       });
       return list.map(item => {
         if (item == null || typeof item !== 'object') {

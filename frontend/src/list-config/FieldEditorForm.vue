@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { Delete, Plus } from '@element-plus/icons-vue'
 import type { SelectOption, WidgetType } from '@/schema/types'
 import { WIDGET_METAS } from '@/schema/defaults'
@@ -7,6 +7,7 @@ import { listDatasets, previewDataset, type DatasetItem } from '@/api/datasets'
 import type { OptionsMode } from '@/api/fields'
 import {
   createDraftFromWidget,
+  ensureDatasetPaginationProps,
   isOptionWidget,
   type FieldDraft,
 } from './fieldDraft'
@@ -98,25 +99,58 @@ function removeOption(index: number) {
 }
 
 function setOptionsMode(mode: OptionsMode) {
+  if (mode === 'static') {
+    patch({
+      optionsMode: mode,
+      datasetId: null,
+      valueKey: '',
+      labelKey: '',
+      options: props.draft.options.length
+        ? props.draft.options
+        : [{ label: '', value: '' }],
+    })
+    return
+  }
+  const nextProps = { ...props.draft.props }
+  if (nextProps.pageKey === undefined) nextProps.pageKey = 'page'
+  if (nextProps.page === undefined) nextProps.page = 1
+  if (nextProps.pageSizeKey === undefined) nextProps.pageSizeKey = 'pageSize'
+  if (nextProps.pageSize === undefined) nextProps.pageSize = 50
   patch({
     optionsMode: mode,
-    ...(mode === 'static'
-      ? {
-          datasetId: null,
-          valueKey: '',
-          labelKey: '',
-          options: props.draft.options.length
-            ? props.draft.options
-            : [{ label: '', value: '' }],
-        }
-      : { options: [] }),
+    options: [],
+    props: nextProps,
   })
+}
+
+/**
+ * 从草稿 props 组装预览用的分页参数
+ */
+function buildPreviewQuery() {
+  const p = ensureDatasetPaginationProps(props.draft.props || {})
+  const query: {
+    pageKey?: string
+    page?: number
+    pageSizeKey?: string
+    pageSize?: number
+  } = {}
+  const pageKey = p.pageKey != null ? String(p.pageKey).trim() : ''
+  const pageSizeKey = p.pageSizeKey != null ? String(p.pageSizeKey).trim() : ''
+  if (pageKey) {
+    query.pageKey = pageKey
+    query.page = p.page != null ? Number(p.page) : 1
+  }
+  if (pageSizeKey) {
+    query.pageSizeKey = pageSizeKey
+    query.pageSize = p.pageSize != null ? Number(p.pageSize) : 50
+  }
+  return query
 }
 
 async function loadDatasetFields(id: number) {
   loadingPreview.value = true
   try {
-    const preview = await previewDataset(id)
+    const preview = await previewDataset(id, buildPreviewQuery())
     datasetFields.value = preview.fields
   } catch {
     datasetFields.value = []
@@ -124,6 +158,25 @@ async function loadDatasetFields(id: number) {
     loadingPreview.value = false
   }
 }
+
+/** 已是 dataset 模式时，把界面默认分页写回 draft，避免只显示未入库 */
+watch(
+  () => props.draft.optionsMode,
+  (mode) => {
+    if (mode !== 'dataset') return
+    const ensured = ensureDatasetPaginationProps(props.draft.props || {})
+    const cur = props.draft.props || {}
+    if (
+      cur.pageKey === undefined ||
+      cur.page === undefined ||
+      cur.pageSizeKey === undefined ||
+      cur.pageSize === undefined
+    ) {
+      patch({ props: ensured })
+    }
+  },
+  { immediate: true },
+)
 
 async function onDatasetChange(id: number | null) {
   patch({
@@ -133,6 +186,26 @@ async function onDatasetChange(id: number | null) {
   })
   if (id) await loadDatasetFields(id)
   else datasetFields.value = []
+}
+
+/**
+ * 更新分页相关 props，改数值时补齐默认参数名
+ * @param partial - 分页字段片段
+ */
+function updatePaginationProps(partial: {
+  pageKey?: string
+  page?: number
+  pageSizeKey?: string
+  pageSize?: number
+}) {
+  const next = { ...props.draft.props, ...partial }
+  if (partial.page !== undefined && next.pageKey === undefined) {
+    next.pageKey = 'page'
+  }
+  if (partial.pageSize !== undefined && next.pageSizeKey === undefined) {
+    next.pageSizeKey = 'pageSize'
+  }
+  patch({ props: next })
 }
 </script>
 
@@ -391,6 +464,40 @@ async function onDatasetChange(id: number | null) {
           >
             <el-option v-for="f in datasetFields" :key="`l-${f}`" :label="f" :value="f" />
           </el-select>
+        </el-form-item>
+        <el-form-item label="页码参数名">
+          <el-input
+            :model-value="(draft.props.pageKey as string) ?? 'page'"
+            placeholder="如 page / pageNo，空则不传"
+            clearable
+            @update:model-value="updatePaginationProps({ pageKey: $event })"
+          />
+        </el-form-item>
+        <el-form-item label="页码">
+          <el-input-number
+            :model-value="(draft.props.page as number) ?? 1"
+            :min="1"
+            controls-position="right"
+            @update:model-value="updatePaginationProps({ page: $event ?? 1 })"
+          />
+        </el-form-item>
+        <el-form-item label="每页条数参数名">
+          <el-input
+            :model-value="(draft.props.pageSizeKey as string) ?? 'pageSize'"
+            placeholder="如 pageSize / limit，空则不传"
+            clearable
+            @update:model-value="updatePaginationProps({ pageSizeKey: $event })"
+          />
+        </el-form-item>
+        <el-form-item label="每页条数">
+          <el-input-number
+            :model-value="(draft.props.pageSize as number) ?? 50"
+            :min="1"
+            :max="500"
+            controls-position="right"
+            @update:model-value="updatePaginationProps({ pageSize: $event ?? 50 })"
+          />
+          <div class="form-tip">参数名留空表示不传给上游；与 searchKey 一样写入字段 props</div>
         </el-form-item>
       </template>
     </template>

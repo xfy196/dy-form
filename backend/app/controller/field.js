@@ -179,7 +179,16 @@ class FieldController extends Controller {
     try {
       const keyword = ctx.query.keyword != null ? String(ctx.query.keyword) : '';
       const searchKey = ctx.query.searchKey != null ? String(ctx.query.searchKey) : undefined;
-      const options = await service.field.resolveOptions(field, { keyword, searchKey });
+      const query = { keyword, searchKey };
+      if (ctx.query.pageKey != null && String(ctx.query.pageKey).trim()) {
+        query.pageKey = String(ctx.query.pageKey).trim();
+        if (ctx.query.page != null) query.page = Number(ctx.query.page);
+      }
+      if (ctx.query.pageSizeKey != null && String(ctx.query.pageSizeKey).trim()) {
+        query.pageSizeKey = String(ctx.query.pageSizeKey).trim();
+        if (ctx.query.pageSize != null) query.pageSize = Number(ctx.query.pageSize);
+      }
+      const options = await service.field.resolveOptions(field, query);
       ctx.body = ctx.helper.ok(options);
     } catch (err) {
       ctx.status = 400;

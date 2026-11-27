@@ -48,7 +48,9 @@ Vite 将 `/api` 代理到 `http://127.0.0.1:7001`。
 3. **Options 双模式**（Select/Radio/Checkbox）：
    - `static`：手动 label|value
    - `dataset`：选数据集并映射 `valueKey` / `labelKey`
-4. 内置演示上游：`GET /api/mock/cities`（`data.list`，字段 `code`/`name`）
+4. 内置演示上游：
+   - `GET /api/mock/cities`（`data.list`，字段 `code`/`name`）
+   - `GET /api/mock/employees`（`payload.items`，字段 `userId`/`displayName` 等，支持分页与筛选）
 
 ## 主要 API
 
@@ -67,5 +69,6 @@ Vite 将 `/api` 代理到 `http://127.0.0.1:7001`。
 ## 推荐验收路径
 
 1. 数据集页新建，URL 填 `http://127.0.0.1:7001/api/mock/cities`，`data_path`=`data.list`，预览可见城市列表  
-2. 字段库新增 Select，选项来源选「关联数据集」，映射 value=`code`、label=`name`，保存  
-3. 运行预览，下拉选项来自上游数据  
+2. （可选）再建复杂上游：URL=`/api/mock/employees`，`data_path`=`payload.items`，映射 value=`userId`、label=`displayName`  
+3. 字段库新增 Select，选项来源选「关联数据集」，映射 value=`code`、label=`name`，保存  
+4. 运行预览，下拉选项来自上游数据  

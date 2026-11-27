@@ -31,9 +31,38 @@ const datasetForm = reactive({
   headersText: '',
 })
 
+/** 内置演示上游预设，选择后自动填充 url / data_path */
+const BUILTIN_SOURCES = [
+  {
+    label: '城市列表 /api/mock/cities',
+    url: '/api/mock/cities',
+    dataPath: 'data.list',
+    method: 'GET',
+  },
+  {
+    label: '员工列表 /api/mock/employees',
+    url: '/api/mock/employees',
+    dataPath: 'payload.items',
+    method: 'GET',
+  },
+] as const
+
 const previewVisible = ref(false)
 const previewLoading = ref(false)
 const previewData = ref<DatasetPreview | null>(null)
+
+/**
+ * 选择内置上游或自定义 URL
+ * @param url - 选中的地址
+ */
+function onUrlChange(url: string) {
+  datasetForm.url = url
+  const preset = BUILTIN_SOURCES.find((item) => item.url === url)
+  if (preset) {
+    datasetForm.dataPath = preset.dataPath
+    datasetForm.method = preset.method
+  }
+}
 
 async function load() {
   loading.value = true
@@ -152,7 +181,13 @@ async function openPreview(row: DatasetItem) {
   previewLoading.value = true
   previewData.value = null
   try {
-    previewData.value = await previewDataset(row.id)
+    // 预览默认带上常见分页，便于对接 /api/mock/employees 等分页上游
+    previewData.value = await previewDataset(row.id, {
+      pageKey: 'page',
+      page: 1,
+      pageSizeKey: 'pageSize',
+      pageSize: 50,
+    })
   } catch (err) {
     ElMessage.error(err instanceof Error ? err.message : '预览失败')
   } finally {
@@ -226,16 +261,30 @@ async function openPreview(row: DatasetItem) {
           </el-select>
         </el-form-item>
         <el-form-item label="URL" required>
-          <el-input
+          <el-select
             :model-value="datasetForm.url"
-            placeholder="如 /api/mock/cities 或 https://example.com/list"
-            @update:model-value="(v: string) => (datasetForm.url = v)"
-          />
+            style="width: 100%"
+            filterable
+            allow-create
+            default-first-option
+            placeholder="选择内置接口，或直接输入自定义 URL"
+            @update:model-value="onUrlChange"
+          >
+            <el-option
+              v-for="item in BUILTIN_SOURCES"
+              :key="item.url"
+              :label="item.label"
+              :value="item.url"
+            />
+          </el-select>
+          <div class="hint" style="margin-top: 4px">
+            可选内置接口；也可输入任意 http(s) 或 / 开头的相对路径
+          </div>
         </el-form-item>
         <el-form-item label="data_path">
           <el-input
             :model-value="datasetForm.dataPath"
-            placeholder="如 data.list，空则根为数组"
+            placeholder="如 data.list / payload.items，空则根为数组"
             @update:model-value="(v: string) => (datasetForm.dataPath = v)"
           />
         </el-form-item>

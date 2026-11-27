@@ -34,8 +34,24 @@ export interface ComponentProps {
   remote?: boolean
   /** 传给上游数据集的搜索参数名，默认 keyword */
   searchKey?: string
+  /** 上游分页：页码参数名，默认 page；空字符串表示不传 */
+  pageKey?: string
+  /** 上游分页：页码值，默认 1 */
+  page?: number
+  /** 上游分页：每页条数参数名，默认 pageSize；空字符串表示不传 */
+  pageSizeKey?: string
+  /** 上游分页：每页条数，默认 50 */
+  pageSize?: number
   /** 运行时字段 id，供远程搜索调用 options 接口 */
   fieldId?: number
+  /** 选项来源：手动 / 数据集（设计器写入 schema） */
+  optionsMode?: 'static' | 'dataset'
+  /** 关联数据集 id */
+  datasetId?: number | null
+  /** 数据集 value 字段名 */
+  valueKey?: string
+  /** 数据集 label 字段名 */
+  labelKey?: string
   options?: SelectOption[]
   activeText?: string
   inactiveText?: string

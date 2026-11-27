@@ -20,8 +20,34 @@ function isRequiredField(schema: FieldSchema): boolean {
   return !!schema.rules?.some((r) => r.required)
 }
 
+/**
+ * 关联数据集时 schema 只保留配置，不落地查询结果 options/enum
+ * @param schema - 字段 schema
+ */
+function sanitizeDatasetBinding(schema: FieldSchema): FieldSchema {
+  const props = schema.componentProps
+  if (!props || props.optionsMode !== 'dataset') return schema
+
+  const {
+    options: _omitOptions,
+    fieldId: _omitFieldId,
+    ...restProps
+  } = props
+
+  return {
+    ...schema,
+    enum: undefined,
+    componentProps: {
+      ...restProps,
+      optionsMode: 'dataset',
+      // 静态 options 不写入；运行时按 datasetId 解析
+      options: undefined,
+    },
+  }
+}
+
 function toFieldItem(name: string, schema: FieldSchema): FormFieldItem {
-  const cloned = cloneSchema(schema)
+  const cloned = sanitizeDatasetBinding(cloneSchema(schema))
   const required = isRequiredField(cloned)
   return {
     name,
