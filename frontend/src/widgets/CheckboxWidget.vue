@@ -10,6 +10,7 @@ const props = defineProps<{
   datasetId?: number | null
   valueKey?: string
   labelKey?: string
+  labelTemplate?: string
   searchKey?: string
   pageKey?: string
   page?: number

@@ -267,6 +267,8 @@ async function openPreview() {
 .dialog-scroll-body {
   max-height: min(62vh, 560px);
   overflow-y: auto;
+  overflow-x: hidden;
+  padding-left: 1px;
   padding-right: 4px;
 }
 </style>

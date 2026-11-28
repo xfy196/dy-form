@@ -11,16 +11,19 @@ export function buildDatasetOptionsQuery(
   const datasetId = props.datasetId
   const valueKey = props.valueKey != null ? String(props.valueKey).trim() : ''
   const labelKey = props.labelKey != null ? String(props.labelKey).trim() : ''
-  if (!datasetId || !valueKey || !labelKey) return null
+  const labelTemplate =
+    props.labelTemplate != null ? String(props.labelTemplate).trim() : ''
+  if (!datasetId || !valueKey || (!labelKey && !labelTemplate)) return null
 
   const pageKey = props.pageKey != null ? String(props.pageKey).trim() : ''
   const pageSizeKey = props.pageSizeKey != null ? String(props.pageSizeKey).trim() : ''
 
   const query: DatasetOptionsQuery = {
     valueKey,
-    labelKey,
     searchKey: (props.searchKey as string) || 'keyword',
   }
+  if (labelTemplate) query.labelTemplate = labelTemplate
+  else query.labelKey = labelKey
   if (pageKey) {
     query.pageKey = pageKey
     query.page = props.page != null ? Number(props.page) : 1

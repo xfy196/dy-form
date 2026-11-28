@@ -1,6 +1,7 @@
 'use strict';
 
 const { Service } = require('egg');
+const { formatOptionLabel } = require('../utils/formatLabel');
 
 function mapRow(row, helper) {
   if (!row) return null;
@@ -202,17 +203,18 @@ class DatasetService extends Service {
   }
 
   /**
-   * 按 valueKey/labelKey 解析为标准 options（供设计器等无 fieldId 场景）
+   * 按 valueKey + labelTemplate/labelKey 解析为标准 options（供设计器等无 fieldId 场景）
    * @param {number} id
-   * @param {{ valueKey: string, labelKey: string, keyword?: string, searchKey?: string, pageKey?: string, page?: number, pageSizeKey?: string, pageSize?: number }} params
+   * @param {{ valueKey: string, labelKey?: string, labelTemplate?: string, keyword?: string, searchKey?: string, pageKey?: string, page?: number, pageSizeKey?: string, pageSize?: number }} params
    */
   async resolveOptions(id, params = {}) {
     const dataset = await this.findById(id);
     if (!dataset) return null;
     const valueKey = String(params.valueKey || '').trim();
     const labelKey = String(params.labelKey || '').trim();
-    if (!valueKey || !labelKey) {
-      throw new Error('valueKey / labelKey 必填');
+    const labelTemplate = String(params.labelTemplate || '').trim();
+    if (!valueKey || (!labelKey && !labelTemplate)) {
+      throw new Error('valueKey 必填，且 labelTemplate 或 labelKey 至少一个');
     }
     const list = await this.fetchList(dataset, {
       keyword: params.keyword,
@@ -227,7 +229,7 @@ class DatasetService extends Service {
         return { label: String(item), value: item };
       }
       return {
-        label: item[labelKey],
+        label: formatOptionLabel(item, { labelKey, labelTemplate }),
         value: item[valueKey],
       };
     });

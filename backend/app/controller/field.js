@@ -59,6 +59,7 @@ class FieldController extends Controller {
         datasetId: body.datasetId ? Number(body.datasetId) : null,
         valueKey: body.valueKey,
         labelKey: body.labelKey,
+        labelTemplate: body.labelTemplate,
         rules: body.rules,
       });
       ctx.status = 201;
@@ -98,6 +99,7 @@ class FieldController extends Controller {
       datasetId: body.datasetId !== undefined ? body.datasetId : existing.datasetId,
       valueKey: body.valueKey !== undefined ? body.valueKey : existing.valueKey,
       labelKey: body.labelKey !== undefined ? body.labelKey : existing.labelKey,
+      labelTemplate: body.labelTemplate !== undefined ? body.labelTemplate : existing.labelTemplate,
     };
     const errors = service.field.validatePayload(merged, { isCreate: false });
     if (errors.length) {
@@ -131,6 +133,7 @@ class FieldController extends Controller {
           : undefined,
         valueKey: body.valueKey,
         labelKey: body.labelKey,
+        labelTemplate: body.labelTemplate,
         rules: body.rules,
       });
       ctx.body = ctx.helper.ok(row, '更新成功');

@@ -50,8 +50,10 @@ export interface ComponentProps {
   datasetId?: number | null
   /** 数据集 value 字段名 */
   valueKey?: string
-  /** 数据集 label 字段名 */
+  /** 数据集 label 字段名（单字段；与 labelTemplate 互斥优先 template） */
   labelKey?: string
+  /** 数据集 label 模板，如 ${code} - ${name} */
+  labelTemplate?: string
   options?: SelectOption[]
   activeText?: string
   inactiveText?: string

@@ -1,6 +1,7 @@
 'use strict';
 
 const { Service } = require('egg');
+const { formatOptionLabel } = require('../utils/formatLabel');
 
 const OPTION_COMPONENTS = new Set([ 'Select', 'Radio', 'Checkbox' ]);
 
@@ -20,6 +21,7 @@ function mapRow(row, helper) {
     datasetId: row.dataset_id || null,
     valueKey: row.value_key || null,
     labelKey: row.label_key || null,
+    labelTemplate: row.label_template || null,
     rules: helper.parseJson(row.rules_json, null),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -40,6 +42,7 @@ function toDbRow(payload) {
     dataset_id: payload.datasetId || null,
     value_key: payload.valueKey || null,
     label_key: payload.labelKey || null,
+    label_template: payload.labelTemplate || null,
     rules_json: payload.rules != null ? JSON.stringify(payload.rules) : null,
   };
 }
@@ -84,7 +87,9 @@ class FieldService extends Service {
       } else if (mode === 'dataset') {
         if (!payload.datasetId) errors.push('dataset 模式需要 datasetId');
         if (!payload.valueKey) errors.push('dataset 模式需要 valueKey');
-        if (!payload.labelKey) errors.push('dataset 模式需要 labelKey');
+        if (!payload.labelTemplate && !payload.labelKey) {
+          errors.push('dataset 模式需要 labelTemplate 或 labelKey');
+        }
       }
     }
 
@@ -133,6 +138,7 @@ class FieldService extends Service {
     if (payload.datasetId !== undefined) patch.dataset_id = payload.datasetId;
     if (payload.valueKey !== undefined) patch.value_key = payload.valueKey;
     if (payload.labelKey !== undefined) patch.label_key = payload.labelKey;
+    if (payload.labelTemplate !== undefined) patch.label_template = payload.labelTemplate;
     if (payload.rules !== undefined) {
       patch.rules_json = payload.rules != null ? JSON.stringify(payload.rules) : null;
     }
@@ -143,6 +149,7 @@ class FieldService extends Service {
         patch.dataset_id = null;
         patch.value_key = null;
         patch.label_key = null;
+        patch.label_template = null;
       }
     }
     if (!OPTION_COMPONENTS.has(merged.component)) {
@@ -151,6 +158,7 @@ class FieldService extends Service {
       patch.dataset_id = null;
       patch.value_key = null;
       patch.label_key = null;
+      patch.label_template = null;
     }
 
     if (Object.keys(patch).length) {
@@ -211,7 +219,10 @@ class FieldService extends Service {
           return { label: String(item), value: item };
         }
         return {
-          label: item[field.labelKey],
+          label: formatOptionLabel(item, {
+            labelKey: field.labelKey,
+            labelTemplate: field.labelTemplate,
+          }),
           value: item[field.valueKey],
         };
       });

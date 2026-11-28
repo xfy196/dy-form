@@ -44,6 +44,7 @@ CREATE TABLE IF NOT EXISTS `form_field` (
   `dataset_id` BIGINT UNSIGNED NULL COMMENT '关联数据集',
   `value_key` VARCHAR(100) NULL COMMENT '数据集 value 字段',
   `label_key` VARCHAR(100) NULL COMMENT '数据集 label 字段',
+  `label_template` VARCHAR(255) NULL COMMENT '数据集 label 模板',
   `rules_json` JSON NULL COMMENT '校验规则',
   `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',

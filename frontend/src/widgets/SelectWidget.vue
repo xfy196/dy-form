@@ -27,6 +27,7 @@ const props = withDefaults(
     datasetId?: number | null
     valueKey?: string
     labelKey?: string
+    labelTemplate?: string
     options?: SelectOption[]
     disabled?: boolean
   }>(),
@@ -73,7 +74,7 @@ function canFetchByDataset() {
     props.optionsMode === 'dataset' &&
     !!props.datasetId &&
     !!props.valueKey &&
-    !!props.labelKey
+    !!(props.labelTemplate || props.labelKey)
   )
 }
 

@@ -177,14 +177,16 @@ class DatasetController extends Controller {
       const body = ctx.request.body || {};
       const valueKey = body.valueKey != null ? String(body.valueKey) : '';
       const labelKey = body.labelKey != null ? String(body.labelKey) : '';
-      if (!valueKey.trim() || !labelKey.trim()) {
+      const labelTemplate = body.labelTemplate != null ? String(body.labelTemplate) : '';
+      if (!valueKey.trim() || (!labelKey.trim() && !labelTemplate.trim())) {
         ctx.status = 400;
-        ctx.body = ctx.helper.fail('valueKey / labelKey 必填');
+        ctx.body = ctx.helper.fail('valueKey 必填，且 labelTemplate 或 labelKey 至少一个');
         return;
       }
       const params = {
         valueKey: valueKey.trim(),
         labelKey: labelKey.trim(),
+        labelTemplate: labelTemplate.trim(),
       };
       if (body.keyword != null) params.keyword = String(body.keyword);
       if (body.searchKey != null) params.searchKey = String(body.searchKey);

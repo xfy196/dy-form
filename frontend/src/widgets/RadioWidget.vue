@@ -15,6 +15,7 @@ const props = withDefaults(
     datasetId?: number | null
     valueKey?: string
     labelKey?: string
+    labelTemplate?: string
     searchKey?: string
     pageKey?: string
     page?: number

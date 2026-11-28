@@ -8,6 +8,7 @@ type DatasetOptionProps = Pick<
   | 'datasetId'
   | 'valueKey'
   | 'labelKey'
+  | 'labelTemplate'
   | 'searchKey'
   | 'pageKey'
   | 'page'
@@ -58,6 +59,7 @@ export function useDatasetOptions(
         p.datasetId,
         p.valueKey,
         p.labelKey,
+        p.labelTemplate,
         p.pageKey,
         p.page,
         p.pageSizeKey,

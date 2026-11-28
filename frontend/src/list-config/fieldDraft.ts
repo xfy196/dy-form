@@ -16,6 +16,7 @@ export interface FieldDraft {
   datasetId: number | null
   valueKey: string
   labelKey: string
+  labelTemplate: string
   rules: FormItemRule[]
 }
 
@@ -41,6 +42,7 @@ export function createDraftFromWidget(widget: WidgetType): FieldDraft {
     datasetId: null,
     valueKey: '',
     labelKey: '',
+    labelTemplate: '',
     rules: [],
   }
 }
@@ -75,6 +77,7 @@ export function draftFromRecord(row: FieldRecord): FieldDraft {
     datasetId: row.datasetId,
     valueKey: row.valueKey || '',
     labelKey: row.labelKey || '',
+    labelTemplate: row.labelTemplate || '',
     rules: row.rules ? [ ...row.rules ] : [],
   }
 }
@@ -110,7 +113,14 @@ export function draftToPayload(draft: FieldDraft): FieldPayload {
         : null,
     datasetId: optionWidget && draft.optionsMode === 'dataset' ? draft.datasetId : null,
     valueKey: optionWidget && draft.optionsMode === 'dataset' ? draft.valueKey : null,
-    labelKey: optionWidget && draft.optionsMode === 'dataset' ? draft.labelKey : null,
+    labelKey:
+      optionWidget && draft.optionsMode === 'dataset' && !draft.labelTemplate
+        ? draft.labelKey || null
+        : null,
+    labelTemplate:
+      optionWidget && draft.optionsMode === 'dataset' && draft.labelTemplate
+        ? draft.labelTemplate
+        : null,
     rules: rules.length ? rules : null,
   }
 }

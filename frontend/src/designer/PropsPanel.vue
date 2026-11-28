@@ -7,6 +7,7 @@ import {
   previewDataset,
   type DatasetItem,
 } from '@/api/datasets'
+import { getLabelDisplay, parseLabelDisplay } from '@/schema/labelDisplay'
 import { useDesignerStore } from './store'
 
 const store = useDesignerStore()
@@ -159,6 +160,7 @@ function setOptionsMode(mode: 'static' | 'dataset') {
       datasetId: null,
       valueKey: '',
       labelKey: '',
+      labelTemplate: '',
       options: optionList.value.length ? optionList.value : [{ label: '', value: '' }],
     })
     datasetFields.value = []
@@ -205,6 +207,7 @@ async function onDatasetChange(id: number | null) {
     datasetId: id,
     valueKey: '',
     labelKey: '',
+    labelTemplate: '',
     options: undefined,
   })
   if (field.value) {
@@ -237,8 +240,36 @@ function onValueKeyChange(v: string) {
   patchProps({ valueKey: v, options: undefined })
 }
 
-function onLabelKeyChange(v: string) {
-  patchProps({ labelKey: v, options: undefined })
+/** 当前显示模板输入值 */
+const labelDisplay = computed(() =>
+  getLabelDisplay(
+    field.value?.schema.componentProps?.labelKey as string | undefined,
+    field.value?.schema.componentProps?.labelTemplate as string | undefined,
+  ),
+)
+
+/**
+ * 更新显示模板（含 ${} 走 template，否则走单字段）
+ * @param input - 输入内容
+ */
+function onLabelDisplayChange(input: string) {
+  const parsed = parseLabelDisplay(input)
+  patchProps({
+    labelKey: parsed.labelKey,
+    labelTemplate: parsed.labelTemplate,
+    options: undefined,
+  })
+}
+
+/**
+ * 在显示模板末尾插入 ${field}
+ * @param fieldName - 数据集字段名
+ */
+function insertLabelField(fieldName: string) {
+  const current = labelDisplay.value
+  const token = `\${${fieldName}}`
+  const next = current ? `${current}${token}` : token
+  onLabelDisplayChange(next)
 }
 </script>
 
@@ -463,19 +494,27 @@ function onLabelKeyChange(v: string) {
               <el-option v-for="f in datasetFields" :key="`v-${f}`" :label="f" :value="f" />
             </el-select>
           </el-form-item>
-          <el-form-item label="label 字段" required>
-            <el-select
-              :model-value="(field.schema.componentProps?.labelKey as string) || undefined"
-              style="width: 100%"
-              filterable
-              allow-create
-              default-first-option
-              :loading="loadingPreview"
-              placeholder="如 name / displayName"
-              @update:model-value="onLabelKeyChange"
-            >
-              <el-option v-for="f in datasetFields" :key="`l-${f}`" :label="f" :value="f" />
-            </el-select>
+          <el-form-item label="显示模板" required>
+            <el-input
+              :model-value="labelDisplay"
+              placeholder="${code} - ${name}"
+              clearable
+              @update:model-value="onLabelDisplayChange"
+            />
+            <div v-if="datasetFields.length" class="label-field-chips">
+              <button
+                v-for="f in datasetFields"
+                :key="`chip-${f}`"
+                type="button"
+                class="label-field-chip"
+                @click="insertLabelField(f)"
+              >
+                {{ f }}
+              </button>
+            </div>
+            <div class="form-tip">
+              单字段直接填字段名；组合显示用 ${字段名}，点击上方字段可插入
+            </div>
           </el-form-item>
           <el-form-item label="页码参数名">
             <el-input
@@ -557,5 +596,29 @@ function onLabelKeyChange(v: string) {
   font-size: 12px;
   color: #909399;
   line-height: 1.4;
+}
+
+.label-field-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.label-field-chip {
+  margin: 0;
+  padding: 2px 8px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  background: #fff;
+  color: #606266;
+  font-size: 12px;
+  line-height: 1.6;
+  cursor: pointer;
+}
+
+.label-field-chip:hover {
+  border-color: var(--el-color-primary);
+  color: var(--el-color-primary);
 }
 </style>

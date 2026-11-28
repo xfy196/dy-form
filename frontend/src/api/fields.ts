@@ -18,6 +18,7 @@ export interface FieldRecord {
   datasetId: number | null
   valueKey: string | null
   labelKey: string | null
+  labelTemplate: string | null
   rules: FormItemRule[] | null
   createdAt: string
   updatedAt: string
@@ -36,6 +37,7 @@ export type FieldPayload = {
   datasetId?: number | null
   valueKey?: string | null
   labelKey?: string | null
+  labelTemplate?: string | null
   rules?: FormItemRule[] | null
 }
 

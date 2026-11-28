@@ -82,13 +82,14 @@ export function previewDataset(id: number, query?: DatasetPreviewQuery) {
 /** 解析数据集 options 的请求参数 */
 export type DatasetOptionsQuery = DatasetPreviewQuery & {
   valueKey: string
-  labelKey: string
+  labelKey?: string
+  labelTemplate?: string
 }
 
 /**
  * 按映射解析数据集为标准 options（设计器无 fieldId 时使用）
  * @param id - 数据集 id
- * @param query - valueKey/labelKey 及分页、搜索
+ * @param query - valueKey + labelTemplate/labelKey 及分页、搜索
  */
 export function resolveDatasetOptions(id: number, query: DatasetOptionsQuery) {
   return request<SelectOption[]>(`/api/datasets/${id}/options`, {
